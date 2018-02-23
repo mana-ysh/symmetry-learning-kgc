@@ -31,7 +31,7 @@ def train(args):
     logger.addHandler(file_handler)
 
     logger.info('Arguments...')
-    for arg, val in vars(args).items():
+    for arg, val in sorted(vars(args).items()):
         logger.info('{:>10} -----> {}'.format(arg, val))
 
     ent_vocab = Vocab.load(args.ent)
