@@ -34,35 +34,21 @@ def train(args):
     for arg, val in sorted(vars(args).items()):
         logger.info('{:>10} -----> {}'.format(arg, val))
 
-    if args.synthetic:
-        train, valid, test = generate_synthetic(args.n_ent, args.n_rel, args.pos_ratio, args.sym_ratio, split=True)
-        train_dat = TripletDataset(train)
-        valid_dat = TripletDataset(valid)
-        n_entity = args.n_ent
-        n_relation = args.n_rel
+    ent_vocab = Vocab.load(args.ent)
+    rel_vocab = Vocab.load(args.rel)
+    n_entity, n_relation = len(ent_vocab), len(rel_vocab)
 
-        # generate negative samples
-        g = TensorTypeGraph(train+valid+test, args.n_ent, args.n_rel)
-        neg_samples = []
-        for r in range(n_relation):
-            neg_samples += [[s, r, o] for s, o in zip(*np.where(g.rel2mat[r].todense()==0))]
-
+    # knowledge base completion
+    if args.task == 'kbc':
+        train_dat = TripletDataset.load(args.train, ent_vocab, rel_vocab)
+        valid_dat = TripletDataset.load(args.valid, ent_vocab, rel_vocab) if args.valid else None
+    # triplet classification
+    elif args.task == 'tc':
+        assert args.metric == 'acc'
+        train_dat = TripletDataset.load(args.train, ent_vocab, rel_vocab)
+        valid_dat = LabeledTripletDataset.load(args.valid, ent_vocab, rel_vocab) if args.valid else None
     else:
-        ent_vocab = Vocab.load(args.ent)
-        rel_vocab = Vocab.load(args.rel)
-        n_entity, n_relation = len(ent_vocab), len(rel_vocab)
-
-        # knowledge base completion
-        if args.task == 'kbc':
-            train_dat = TripletDataset.load(args.train, ent_vocab, rel_vocab)
-            valid_dat = TripletDataset.load(args.valid, ent_vocab, rel_vocab) if args.valid else None
-        # triplet classification
-        elif args.task == 'tc':
-            assert args.metric == 'acc'
-            train_dat = TripletDataset.load(args.train, ent_vocab, rel_vocab)
-            valid_dat = LabeledTripletDataset.load(args.valid, ent_vocab, rel_vocab) if args.valid else None
-        else:
-            raise ValueError('Invalid task: {}'.format(args.task))
+        raise ValueError('Invalid task: {}'.format(args.task))
 
     if args.opt == 'sgd':
         opt = SGD(args.lr)
@@ -101,15 +87,13 @@ def train(args):
                                   batchsize=args.batch, logger=logger,
                                   evaluator=evaluator, valid_dat=valid_dat,
                                   n_negative=args.negative, epoch=args.epoch,
-                                  model_dir=args.log, restart=args.restart,
-                                  sample_strategy=args.sample)
+                                  model_dir=args.log, restart=args.restart)
     elif args.mode == 'single':
         trainer = SingleTrainer(model=model, opt=opt, save_step=args.save_step,
                                 batchsize=args.batch, logger=logger,
                                 evaluator=evaluator, valid_dat=valid_dat,
                                 n_negative=args.negative, epoch=args.epoch,
-                                model_dir=args.log, restart=args.restart,
-                                sample_strategy=args.sample)
+                                model_dir=args.log, restart=args.restart)
     else:
         raise NotImplementedError
 
@@ -127,17 +111,8 @@ if __name__ == '__main__':
     p.add_argument('--train', type=str, help='training data')
     p.add_argument('--valid', type=str, help='validation data')
 
-    # synthetic data
-    p.add_argument('--synthetic', action='store_true')
-    p.add_argument('--labeled', action='store_true')
-    p.add_argument('--n_rel', default=10, type=int, help='number of relation')
-    p.add_argument('--n_ent', default=100, type=int, help='number of entity')
-    p.add_argument('--pos_ratio', default=0.1, type=float, help='ratio of obserbed positive triplet')
-    p.add_argument('--sym_ratio', default=0.5, type=float, help='ratio of symmetry reation')
-
     # model
-    p.add_argument('--method', default='complex', type=str,
-                   help='method ["complex", "gencomplex", "transe", "distmult", "analogy"]')
+    p.add_argument('--method', default='complex', type=str, help='method ["complex"]')
     p.add_argument('--restart', default=None, type=str, help='retraining model path')
     p.add_argument('--epoch', default=100, type=int, help='number of epochs')
     p.add_argument('--batch', default=128, type=int, help='batch size')
@@ -149,13 +124,6 @@ if __name__ == '__main__':
     p.add_argument('--l2_reg', default=0., type=float, help='L2 regularization')
     p.add_argument('--gradclip', default=-1, type=float, help='gradient clipping')
     p.add_argument('--save_step', default=100, type=int)
-    p.add_argument('--sample', default='uniform', type=str)
-
-
-    # model-specific config
-    p.add_argument('--comp', default='conv', type=str, help='compositional function in HolE ["conv", "corr"]')
-    p.add_argument('--cp_ratio', default=0.5, type=float, help="ratio of complex's dimention in ANALOGY")
-    p.add_argument('--shift', default=1.0, type=float, help='shifted-value for Shift ComplEx')
 
     # evaluation
     p.add_argument('--metric', default='mrr', type=str, help='evaluation metrics ["mrr", "hits", "acc"]')

@@ -119,8 +119,7 @@ if __name__ == '__main__':
     p.add_argument('--valid', type=str, help='validation data')
 
     # model
-    p.add_argument('--method', default='transe', type=str,
-                   help='method ["transe", "complex", "gencomplex"]')
+    p.add_argument('--method', default='complex', type=str, help='method ["complex"]')
     p.add_argument('--restart', default=None, type=str, help='retraining model path')
     p.add_argument('--epoch', default=100, type=int, help='number of epochs')
     p.add_argument('--batch', default=128, type=int, help='batch size')
@@ -130,14 +129,10 @@ if __name__ == '__main__':
     p.add_argument('--negative', default=10, type=int, help='number of negative samples for pairwise training')
     p.add_argument('--reg', default=0., type=float, help='strength of L1/L2 regularization')
     p.add_argument('--l1_ratio', default=1.0, type=float, help='ratio of L1')
-    p.add_argument('--opt', default='rda', type=str, help='optimizer ["rda", "rdamul", "adarda", "adardamul", "adardamul2"]')
+    p.add_argument('--opt', default='rda', type=str, help='optimizer ["adarda", "adardamul"]')
     p.add_argument('--gradclip', default=-1, type=float, help='gradient clipping')
     p.add_argument('--add_re', action='store_true')
-    p.add_argument('--onlyl1', action='store_true')
     p.add_argument('--save_step', default=100, type=int)
-
-    # model-specific config
-    p.add_argument('--comp', default='conv', type=str, help='compositional function in HolE ["conv", "corr"]')
 
     # evaluation
     p.add_argument('--metric', default='mrr', type=str, help='evaluation metrics ["mrr", "hits", "acc"]')
